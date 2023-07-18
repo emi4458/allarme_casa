@@ -1,7 +1,7 @@
 
 # allarme_casa
 
-This is a homemade alarm created using an arduino Mega 2560 and other low-cost hardware.
+This is a homemade alarm built using an Arduino Mega 2560 and other low-cost hardware.
 
 The components used are:  
 -Arduino mega 2560 with esp8266  
@@ -16,7 +16,7 @@ I embedded the microwave sensors inside the switch boxes around the house. I tes
 ![](https://i.imgur.com/6a8twP2.jpg)
 
 
-I used the 3D printer to create the base on which I attached arduino along with the relays and breadboard inside a cabinet in the living room
+I used the 3D printer to make the base to which I attached the Arduino, relays and breadboard inside a cabinet in the living room.
 
 ![](https://i.imgur.com/eYYzV2p.png)
 
@@ -24,11 +24,11 @@ I used the 3D printer to create the base on which I attached arduino along with 
 
 
 # How it works
-When the alarm is turned on by the remote, the relay of the sensors turns on the power and the system waits seconds to allow it to move away. When one of the microwave sensors detects motion the alarm is triggered which turns on the siren relay and sends an alert to the esp8266 module which via a telegram bot will send a message. The remote control module with the 4 relays is used to turn the alarm on and off and open the pedestrian gate. 
+When the alarm is activated by the remote control, the sensor relays are energised and the system waits a few seconds for the person to move away. If one of the microwave sensors detects a movement, the alarm is triggered, the siren relay is activated and an alarm is sent to the esp8266 module, which sends a message via a telegram bot. The remote control module with the 4 relays is used to turn the alarm on/off and to open the pedestrian gate. 
 
-I used arduino interrupts to allow the alarm to be disabled immediately if it is triggered by mistake.
+I used Arduino interrupts to disable the alarm immediately if it is triggered by mistake
 
-I have predisposed in the software the ability to add a SIM900 module to call me when the alarm is triggered. I plan to add it in the future.
+I have included in the software the ability to add a SIM900 module to call me when the alarm is triggered. I plan to add this in the future.
 
 There is a telegram bot in the esp8266 module that allows me to check the status of the alarm and turn it off or on. It alerts me when motion is detected by specifying which sensor detected it.
 
