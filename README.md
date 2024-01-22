@@ -1,10 +1,10 @@
 
 # allarme_casa
 
-This is a homemade alarm built using an Arduino Mega 2560 and other low-cost hardware.
+This is a homemade alarm built using an Arduino GIGA R1 and other low-cost hardware.
 
 The components used are:  
--Arduino mega 2560 with esp8266  
+-Arduino GIGA R1  
 -Microwave sensors RCWL-0516  
 -2 relays controlled by Arduino  
 -A module with 4 relays controlled by a remote control  
@@ -28,10 +28,8 @@ When the alarm is activated by the remote control, the sensor relays are energis
 
 I used Arduino interrupts to disable the alarm immediately if it is triggered by mistake
 
-I have included in the software the ability to add a SIM900 module to call me when the alarm is triggered. I plan to add this in the future.
-
-There is a telegram bot in the esp8266 module that allows me to check the status of the alarm and turn it off or on. It alerts me when motion is detected by specifying which sensor detected it.
-
+I added a telegram bot that allows me to check the status of the alarm and turn it off or on. It alerts me when motion is detected by specifying which sensor detected it:
+![](https://i.imgur.com/9bqkqDY.png)
 
 # Wiring diagram
 
