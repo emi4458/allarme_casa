@@ -1,12 +1,15 @@
-#define VERSION "allarme_giga v2.0 - 22/01/2024" //ArduinoJson 6.21.5 //AsyncTelegram 2.2.3 (or 2.2.0 is ok)
+#define VERSION "allarme_giga v2.2.0 - 16/04/2024" //ArduinoJson 7.0.4 //AsyncTelegram 2.3.1
 
 
-#include "secret.h" //credentials for wifi and telegram
+#include "secret.h" //credentials and personal information
 #include <SPI.h>
 #include <WiFi.h>
 #include <WiFiSSLClient.h>
 #include <AsyncTelegram2.h>
+#include <time.h>
 
+#define MYTZ "CET+1CEST,M3.5.0,M10.5.0/3"
+#define USE_CLIENTSSL false 
 #define INGRESSO 22
 #define SALA_GIARDINO 24
 #define CUCINA 26
@@ -19,60 +22,49 @@
 #define RELE_SENSORI 8
 #define RELE_ACCENSIONE 2
 #define RELE_SPEGNIMENTO 3  //connect to pin INT0 INTERRUPT
-#define USE_CLIENTSSL true 
 #define ON "on"
 #define OFF "off"
 #define STATUS "status"
 
 
-volatile unsigned long  activation_time;
-volatile unsigned long  msg_time;
-volatile unsigned long  wifi_time;
-unsigned long alarm_time;
+volatile unsigned long activation_time;
+volatile unsigned long msg_time;
+volatile unsigned long wifi_time;
+volatile unsigned long call_time; 
+volatile unsigned long last_detection;
+volatile unsigned long time_first_call=0;
 unsigned long x=30000; //time after activation
-unsigned long y=5000;  //interval for message
-unsigned long z=60000; //alarm time 60 seconds
-unsigned long w=1800000; //check connection every 30 minutes
-volatile boolean isON;
+unsigned long y=30000;  //interval for message 30 seconds
+unsigned long z=120000; //alarm time 120 seconds
+unsigned long w=1800000; //check connection every 30 minutes (1800000 ms)
+unsigned long wait_call=0; //this will be incremented after each call
 
-char ssid[] = wifi_ssid;        
-char pass[] = wifi_password; 
-const char* token = telegram_token;
+volatile boolean isON;
+String position="null";
+int first_call=true;
+int user_num=0;
+char users[4][17]={NUMBER1,NUMBER2,NUMBER3,NUMBER4};
+
+char ssid[] = WIFI_SSID;        
+char pass[] = WIFI_PASSWORD; 
+const char* token = TELEGRAM_TOKEN;
 
 WiFiSSLClient client;
 AsyncTelegram2 myBot(client);
 InlineKeyboard kbd;
 int status = WL_IDLE_STATUS; //status of connection
 
-
-void activation(){
-  isON=true;
-  digitalWrite(LED, HIGH);
-  digitalWrite(RELE_SENSORI, HIGH);
-  activation_time=millis();
-}
-void deactivation(){
-  isON=false;
-  digitalWrite(LED, LOW);
-  digitalWrite(RELE_SIRENA, LOW);
-  digitalWrite(RELE_SENSORI, LOW);
-}
-
-
-void interrupt_deactivation(){
-  deactivation();
-}
-
-void interrupt_activation(){
-  activation();
-  activation_time=millis(); //ancora più new
-}
-
+TBMessage msg;
+int a=0,b=0,c=0,d=0,e=0,f=0,g=0;
 
 void setup() {
+
+  Serial.begin(115200);
+  Serial2.begin(115200); //Serial2 is TX1 and RX1 (17-18 pin)
   
-  attachInterrupt(0,interrupt_activation,RISING);             //page 275 of the book, INT 0 è IL PIN INT0 DELLA SCHEDA
+  attachInterrupt(0,interrupt_activation,RISING);   //page 275 of the book, INT 0 is PIN INT0 on the shield
   attachInterrupt(1,interrupt_deactivation,RISING); 
+
   pinMode(INGRESSO,INPUT);
   pinMode(SALA_GIARDINO,INPUT);
   pinMode(CUCINA,INPUT);
@@ -86,9 +78,7 @@ void setup() {
   pinMode(RELE_SIRENA,OUTPUT);
   pinMode(RELE_SENSORI,OUTPUT);
   
-  Serial.begin(9600);
   isON=false;
-  delay(2000);
   activation_time=millis();
   msg_time=millis();
   wifi_time=millis();
@@ -97,7 +87,8 @@ void setup() {
     status = WiFi.begin(ssid, pass);
     delay(5000);
   }
-  myBot.setUpdateTime(1000);
+
+  myBot.setUpdateTime(2000);
   myBot.setTelegramToken(token);
 
   kbd.addButton("Attiva allarme", ON, KeyboardButtonQuery);
@@ -105,13 +96,12 @@ void setup() {
   kbd.addRow();
   kbd.addButton("Stato allarme", STATUS, KeyboardButtonQuery);
 
-  myBot.sendTo(id_1, "Sono online");
-  Serial.println(VERSION);
+  myBot.sendTo(ID_1, "Sono di nuovo online"); //to warn when the power goes out
+
+  Serial.println(F(VERSION));
 }
 
-void loop() {
-  
-  int a=0,b=0,c=0,d=0,e=0,f=0,g=0;
+void loop(){
 
   if(isON==true){
     a=digitalRead(INGRESSO);
@@ -123,56 +113,70 @@ void loop() {
     g=digitalRead(GARAGE);
 
     if(a || b || c || d || e || f || g ){
-      String position="null";
-      if(a) position="Ingresso";
-      if(b) position="Porta-finestra giardino";
-      if(c) position="Cucina";
-      if(d) position="Disimpegno";
-      if(e) position="Camera";
-      if(f) position="Bagno";
-      if(g) position="Garage";
-      
-      if(millis()>activation_time+x){                         //if passed enough time from activation
-        if(millis()>msg_time+y){                   //if passed enough time from last message
-          myBot.sendTo(id_1, "ALLARME "+ position);
+      if(a) position="INGRESSO";
+      if(b) position="PORTA FINESTRA GIARDINO";
+      if(c) position="CUCINA";
+      if(d) position="DISIMPEGNO";
+      if(e) position="CAMERA";
+      if(f) position="BAGNO";
+      if(g) position="GARAGE";
+
+      if(millis()>activation_time+x){//if passed enough time from activation
+        
+        digitalWrite(RELE_SIRENA, HIGH);
+
+        last_detection=millis(); //time from last detection
+
+        if(millis()>msg_time+y){ //if passed enough time from last message
+          myBot.sendTo(ID_1, "ALLARME "+ position);
+          myBot.sendTo(ID_2, "ALLARME "+ position);
+          myBot.sendTo(ID_3, "ALLARME "+ position);
+          myBot.sendTo(ID_4, "ALLARME "+ position);
           msg_time=millis();
         }
-        digitalWrite(RELE_SIRENA, HIGH);
-        alarm_time=millis();
+
+        if(first_call==true){  //time of first call
+          time_first_call=millis();
+          first_call=false;
+        }
+        
+        if(millis()>time_first_call+wait_call){ //every 50 seconds calls user
+          Serial2.println("AT+CHUP");
+          delay(500);
+          Serial2.println(users[user_num]);
+          if(user_num>=USERS-1){
+            user_num=0;
+          }
+          else{
+            user_num++;
+          }
+          wait_call+=50000;
+        } 
       }
     }
   }
 
   if(millis()>wifi_time+w){ //check connection every 30 minutes
+    wifi_time=millis();
     status=WiFi.status();
     if(status!=WL_CONNECTED){
+      //Serial.println(F("Connessione assente, provo a riconettermi..."));
       status = WiFi.begin(ssid, pass);
-      delay(5000);
     }
   }
 
+  if(millis()>last_detection+z){ //after z millisecond from last detection
+    digitalWrite(RELE_SIRENA, LOW);
+    last_detection=millis();
+    first_call=true;
+    wait_call=0;
+  }
   
-  if(isON==false){
-    digitalWrite(RELE_SIRENA, LOW);
-    digitalWrite(RELE_SENSORI, LOW);
-    digitalWrite(LED,LOW);
-  }
-  if(isON==true){
-    digitalWrite(RELE_SENSORI,HIGH);
-    digitalWrite(LED,HIGH);
-  }
-  if(millis()>alarm_time+z){
-    digitalWrite(RELE_SIRENA, LOW);
-  }
-
-  TBMessage msg;
   if (myBot.getNewMessage(msg)) {
-
     if(msg.messageType==MessageText){
-      myBot.sendMessage(msg, "Questo è quello che posso fare:", kbd);
+      myBot.sendMessage(msg, "Ciao, questo è quello che posso fare:", kbd);
     }
     else if(msg.messageType==MessageQuery){
-
       if (msg.callbackQueryData.equals(ON)){
         activation();
         myBot.sendMessage(msg, "Allarme attivato");
@@ -199,3 +203,30 @@ void loop() {
   }
   
 }
+
+void activation(){
+  isON=true;
+  digitalWrite(LED, HIGH);
+  digitalWrite(RELE_SENSORI, HIGH);
+  activation_time=millis();
+}
+void deactivation(){
+  isON=false;
+  digitalWrite(LED, LOW);
+  digitalWrite(RELE_SIRENA, LOW);
+  digitalWrite(RELE_SENSORI, LOW);
+  Serial2.println("AT+CHUP");
+  first_call=true;
+  wait_call=0;
+}
+
+void interrupt_deactivation(){
+  deactivation();
+}
+
+void interrupt_activation(){
+  activation();
+}
+
+
+
