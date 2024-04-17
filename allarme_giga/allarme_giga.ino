@@ -1,6 +1,5 @@
 #define VERSION "allarme_giga v2.2.0 - 16/04/2024" //ArduinoJson 7.0.4 //AsyncTelegram 2.3.1
 
-
 #include "secret.h" //credentials and personal information
 #include <SPI.h>
 #include <WiFi.h>
@@ -21,7 +20,7 @@
 #define RELE_SIRENA 31
 #define RELE_SENSORI 8
 #define RELE_ACCENSIONE 2
-#define RELE_SPEGNIMENTO 3  //connect to pin INT0 INTERRUPT
+#define RELE_SPEGNIMENTO 3 
 #define ON "on"
 #define OFF "off"
 #define STATUS "status"
@@ -62,8 +61,8 @@ void setup() {
   Serial.begin(115200);
   Serial2.begin(115200); //Serial2 is TX1 and RX1 (17-18 pin)
   
-  attachInterrupt(0,interrupt_activation,RISING);   //page 275 of the book, INT 0 is PIN INT0 on the shield
-  attachInterrupt(1,interrupt_deactivation,RISING); 
+  attachInterrupt(digitalPinToInterrupt(2),interrupt_activation,RISING);   
+  attachInterrupt(digitalPinToInterrupt(3),interrupt_deactivation,RISING); 
 
   pinMode(INGRESSO,INPUT);
   pinMode(SALA_GIARDINO,INPUT);
@@ -77,6 +76,9 @@ void setup() {
   pinMode(LED,OUTPUT);
   pinMode(RELE_SIRENA,OUTPUT);
   pinMode(RELE_SENSORI,OUTPUT);
+
+  digitalWrite(RELE_SENSORI, HIGH);
+  digitalWrite(RELE_SIRENA, HIGH);
   
   isON=false;
   activation_time=millis();
@@ -123,7 +125,7 @@ void loop(){
 
       if(millis()>activation_time+x){//if passed enough time from activation
         
-        digitalWrite(RELE_SIRENA, HIGH);
+        digitalWrite(RELE_SIRENA, LOW);
 
         last_detection=millis(); //time from last detection
 
@@ -166,7 +168,7 @@ void loop(){
   }
 
   if(millis()>last_detection+z){ //after z millisecond from last detection
-    digitalWrite(RELE_SIRENA, LOW);
+    digitalWrite(RELE_SIRENA, HIGH);
     last_detection=millis();
     first_call=true;
     wait_call=0;
@@ -207,14 +209,14 @@ void loop(){
 void activation(){
   isON=true;
   digitalWrite(LED, HIGH);
-  digitalWrite(RELE_SENSORI, HIGH);
+  digitalWrite(RELE_SENSORI, LOW);
   activation_time=millis();
 }
 void deactivation(){
   isON=false;
   digitalWrite(LED, LOW);
-  digitalWrite(RELE_SIRENA, LOW);
-  digitalWrite(RELE_SENSORI, LOW);
+  digitalWrite(RELE_SIRENA, HIGH);
+  digitalWrite(RELE_SENSORI, HIGH);
   Serial2.println("AT+CHUP");
   first_call=true;
   wait_call=0;
