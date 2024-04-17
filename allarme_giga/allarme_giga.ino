@@ -1,4 +1,4 @@
-#define VERSION "allarme_giga v2.2.0 - 16/04/2024" //ArduinoJson 7.0.4 //AsyncTelegram 2.3.1
+#define VERSION "allarme_giga v2.3.0 - 17/04/2024" //ArduinoJson 7.0.4 //AsyncTelegram 2.3.1
 
 #include "secret.h" //credentials and personal information
 #include <SPI.h>
@@ -38,8 +38,16 @@ unsigned long z=120000; //alarm time 120 seconds
 unsigned long w=1800000; //check connection every 30 minutes (1800000 ms)
 unsigned long wait_call=0; //this will be incremented after each call
 
+char ingresso[]= "ALLARME INGRESSO";
+char sala_giardino[]= "ALLARME SALA GIARDINO";
+char cucina[]= "ALLARME CUCINA";
+char disimpegno[]= "ALLARME DISIMPEGNO";
+char camera[]= "ALLARME CAMERA";
+char bagno[]= "ALLARME BAGNO";
+char garage[]= "ALLARME GARAGE";
+char* trigger_ptr;
+
 volatile boolean isON;
-String position="null";
 int first_call=true;
 int user_num=0;
 char users[4][17]={NUMBER1,NUMBER2,NUMBER3,NUMBER4};
@@ -115,13 +123,13 @@ void loop(){
     g=digitalRead(GARAGE);
 
     if(a || b || c || d || e || f || g ){
-      if(a) position="INGRESSO";
-      if(b) position="PORTA FINESTRA GIARDINO";
-      if(c) position="CUCINA";
-      if(d) position="DISIMPEGNO";
-      if(e) position="CAMERA";
-      if(f) position="BAGNO";
-      if(g) position="GARAGE";
+      if(a) trigger_ptr=ingresso;
+      if(b) trigger_ptr=sala_giardino;
+      if(c) trigger_ptr=cucina;
+      if(d) trigger_ptr=disimpegno;
+      if(e) trigger_ptr=camera;
+      if(f) trigger_ptr=bagno;
+      if(g) trigger_ptr=garage;
 
       if(millis()>activation_time+x){//if passed enough time from activation
         
@@ -130,16 +138,17 @@ void loop(){
         last_detection=millis(); //time from last detection
 
         if(millis()>msg_time+y){ //if passed enough time from last message
-          myBot.sendTo(ID_1, "ALLARME "+ position);
-          myBot.sendTo(ID_2, "ALLARME "+ position);
-          myBot.sendTo(ID_3, "ALLARME "+ position);
-          myBot.sendTo(ID_4, "ALLARME "+ position);
+          myBot.sendTo(ID_1, trigger_ptr);
+          myBot.sendTo(ID_2, trigger_ptr);
+          myBot.sendTo(ID_3, trigger_ptr);
+          myBot.sendTo(ID_4, trigger_ptr);
           msg_time=millis();
         }
 
         if(first_call==true){  //time of first call
           time_first_call=millis();
           first_call=false;
+          user_num=0;
         }
         
         if(millis()>time_first_call+wait_call){ //every 50 seconds calls user
@@ -172,6 +181,7 @@ void loop(){
     last_detection=millis();
     first_call=true;
     wait_call=0;
+    user_num=0;
   }
   
   if (myBot.getNewMessage(msg)) {
