@@ -37,7 +37,13 @@ I added a telegram bot that allows me to check the status of the alarm and turn 
 # Wiring diagram
 
 ![](https://i.imgur.com/eqSnhwG.png)
+
+# Changelog
+
+- v1.0.0 first version with Arduino Mega and ESP8266
+- v2.0.0 changed board with Arduino Giga R1
+- v2.2.0 added sim module SIM7600X for calls
+- v2.3.0 replaced the use of class String with char[] for crash problems
 ## Authors
 
 - [@emi4458](https://github.com/emi4458)
-
